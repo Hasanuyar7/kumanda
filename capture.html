@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Ekran Yayını (Capture)</title>
+  <style>
+    body { background:#000; color:white; display:flex; align-items:center; justify-content:center; height:100vh; font-family:sans-serif; }
+    button { padding:15px 30px; font-size:18px; cursor:pointer; }
+    video { display:none; }
+  </style>
+</head>
+<body>
+  <button id="startBtn">🖥️ Yayını Başlat</button>
+  <video id="video" autoplay muted></video>
+  <canvas id="canvas" style="display:none;"></canvas>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+    const startBtn = document.getElementById('startBtn');
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    startBtn.onclick = async () => {
+      try {
+        // Tüm masaüstünü yakala (Chrome'da "Tüm Ekran" seçilmeli)
+        const stream = await navigator.mediaDevices.getDisplayMedia({
+          video: { cursor: "always" },
+          audio: false
+        });
+        video.srcObject = stream;
+        startBtn.style.display = 'none';
+        document.body.style.background = '#111';
+        document.body.innerHTML += '<p>Yayın başladı, bu sekmeyi kapatma.</p>';
+
+        // Canvas boyutunu video boyutuna ayarla
+        video.onloadedmetadata = () => {
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          // Yayıncı olduğunu sunucuya bildir
+          socket.emit('broadcaster');
+          // Sürekli kare yakala ve gönder (10 FPS)
+          setInterval(() => {
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+              ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+              const jpeg = canvas.toDataURL('image/jpeg', 0.6); // base64, kalite %60
+              socket.emit('frame', jpeg.split(',')[1]); // sadece base64 kısmı
+            }
+          }, 100);
+        };
+      } catch (err) {
+        alert('Ekran paylaşımı başlatılamadı: ' + err.message);
+      }
+    };
+  </script>
+</body>
+</html>

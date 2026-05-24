@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Uzaktan Kumanda</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      background: #1a1a2e;
+      font-family: 'Segoe UI', sans-serif;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+    }
+    .container {
+      background: #22223a;
+      padding: 1.5rem;
+      border-radius: 20px;
+      width: 90%;
+      max-width: 400px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+    h2 { text-align: center; margin-bottom: 1rem; }
+    .search-row {
+      display: flex; gap: 6px; margin-bottom: 1rem;
+    }
+    .search-row input {
+      flex: 1; padding: 12px; border: none; border-radius: 10px;
+      background: #2f2f4f; color: white; font-size: 16px; outline: none;
+    }
+    .search-row button {
+      padding: 12px 18px; border: none; border-radius: 10px;
+      background: #6c63ff; color: white; font-weight: bold; cursor: pointer;
+    }
+    .shortcuts {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+    }
+    .shortcuts button {
+      padding: 12px 5px; border: none; border-radius: 10px;
+      background: #2f2f4f; color: white; font-size: 14px; cursor: pointer;
+      display: flex; flex-direction: column; align-items: center;
+    }
+    .shortcuts button span { font-size: 20px; margin-bottom: 4px; }
+    .shortcuts button:active { background: #6c63ff; }
+    #status { text-align: center; margin-top: 1rem; font-size: 12px; opacity: 0.7; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>💻 Uzaktan Kumanda</h2>
+    <div class="search-row">
+      <input type="text" id="searchInput" placeholder="Google'da ara..." autocomplete="off">
+      <button id="sendBtn">Gönder</button>
+    </div>
+
+    <div class="shortcuts" id="shortcutsContainer"></div>
+    <div id="status">Bağlanıyor...</div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const socket = io();
+      const statusDiv = document.getElementById('status');
+      const searchInput = document.getElementById('searchInput');
+      const sendBtn = document.getElementById('sendBtn');
+      const container = document.getElementById('shortcutsContainer');
+
+      const shortcuts = [
+        { key: 'ctrl+t', icon: '🆕', label: 'Yeni Sekme' },
+        { key: 'ctrl+w', icon: '❌', label: 'Sekme Kapat' },
+        { key: 'alt+left', icon: '⬅️', label: 'Geri' },
+        { key: 'alt+right', icon: '➡️', label: 'İleri' },
+        { key: 'volume_up', icon: '🔊', label: 'Ses Aç' },
+        { key: 'volume_down', icon: '🔉', label: 'Ses Kıs' },
+        { key: 'volume_mute', icon: '🔇', label: 'Sesi Kapat' },
+        { key: 'media_play_pause', icon: '⏯️', label: 'Oynat/Dur' },
+        { key: 'media_prev', icon: '⏮️', label: 'Önceki' },
+        { key: 'media_next', icon: '⏭️', label: 'Sonraki' },
+        { key: 'escape', icon: '⎋', label: 'Esc' },
+        { key: 'enter', icon: '↵', label: 'Enter' }
+      ];
+
+      shortcuts.forEach(s => {
+        const btn = document.createElement('button');
+        btn.innerHTML = `<span>${s.icon}</span>${s.label}`;
+        btn.addEventListener('click', () => {
+          socket.emit('key', s.key);
+          statusDiv.textContent = 'Tuş: ' + s.label;
+        });
+        container.appendChild(btn);
+      });
+
+      socket.on('connect', () => { statusDiv.textContent = '✅ Bağlı'; });
+      socket.on('disconnect', () => { statusDiv.textContent = '⛔ Bağlantı koptu'; });
+
+      function sendText() {
+        const text = searchInput.value.trim();
+        if (text) {
+          socket.emit('type', text);
+          searchInput.value = '';
+          statusDiv.textContent = 'Gönderildi: ' + text;
+        }
+      }
+
+      sendBtn.addEventListener('click', sendText);
+      searchInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') sendText();
+      });
+    });
+  </script>
+</body>
+</html>
